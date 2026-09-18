@@ -1,0 +1,21 @@
+[project]
+name = "fly-in-tests"
+version = "1.0.0"
+description = "Black-box tester and test maps for the 42 Fly-In project"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+fly-in-tester = "fly_in_tester.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["fly_in_tester"]
+
+[tool.mypy]
+strict = true
+exclude = ["whitebox/", "adapters/"]
