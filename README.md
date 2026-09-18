@@ -38,6 +38,29 @@ python3 -m fly_in_tester run --cmd "python3 main.py {map}" --cwd ../my-project
 The exit status is `1` if any map **fails**, `0` otherwise (warnings do not
 change it).
 
+### Makefile
+
+`make` (or `make help`) lists the targets:
+
+| Target | What it does |
+| --- | --- |
+| `make run` | run the tester on all maps; options `CMD`, `GROUP`, `FILTER`, `JOBS`, `TIMEOUT`, `ARGS` |
+| `make run-strict` | like `run`, but turns above the targets are failures |
+| `make list` | list the maps (`GROUP`, `FILTER`) |
+| `make check MAP=<map> OUT=<file or ->` | check an existing output |
+| `make test` | tests of the tester itself |
+| `make whitebox` | unit tests of the project (`PROJECT=<path>`) |
+| `make lint` | `flake8` and `mypy --strict` |
+| `make all` | `lint` + `test` + `whitebox` |
+| `make maps` | regenerate `maps/` and `manifest.json` |
+| `make clean` | remove caches |
+
+```sh
+make run                                    # author's project through the adapter
+make run GROUP=edge-invalid                 # only the invalid edge cases
+make run CMD="python3 main.py {map}" ARGS="--cwd ../my-project"
+```
+
 ### Terminal output or output file
 
 - **Terminal (default):** every stdout line that looks like a turn
@@ -55,11 +78,49 @@ python3 main.py maps/provided/easy/01_linear_path.txt | python3 -m fly_in_tester
 
 ### Programs with a GUI
 
-A tester cannot click through a window. If your program needs a graphical
-start, give it a way to print without one (for example a `--no-gui` flag) and
-use that in `--cmd`. The tester already sets `SDL_VIDEODRIVER=dummy`. For
-projects that are structured like the author's, the adapter below runs the
-same logic without a window.
+A tester cannot click through a window. If your program opens one, give it a
+way to print without it (for example a `--no-gui` flag) and use that in
+`--cmd`, or use an adapter (see below). The tester already sets
+`SDL_VIDEODRIVER=dummy`.
+
+## Testing a project with a different structure
+
+The tester does not care how a project is organised, only that it can be run
+as a **command**. The contract:
+
+1. the command takes the map (as an argument, on stdin, or via `{map}`);
+2. for a solvable map it prints the turns, one line per turn
+   (`D1-roof1 D2-corridorA`), to the terminal or to a file, and exits with
+   status **0**;
+3. for a broken or unsolvable map it prints a message (with the line number
+   for parse errors) to stderr and exits with a status **other than 0**;
+4. it never opens a window and never crashes with a traceback.
+
+Then only the command changes. `{map}` is the map path, `{out}` a file the
+program should write:
+
+| Project | `--cmd` |
+| --- | --- |
+| script, map as argument | `python3 main.py {map}` |
+| package | `python3 -m fly_in {map}` |
+| program with an option | `python3 main.py --map {map} --no-gui` |
+| compiled program | `./fly_in {map}` |
+| map on stdin (needs `--shell`) | `./fly_in < {map}` |
+| solution written to a file | `python3 main.py {map} {out}` |
+
+```sh
+make run PROJECT=../other-project CMD="python3 main.py {map}"
+make run PROJECT=../other-project CMD="./fly_in < {map}" ARGS=--shell
+```
+
+`PROJECT` is the directory the command runs in (`--cwd`). Use `-v` to see the
+details of a failure and `make run GROUP=edge-invalid` to focus on parser
+errors.
+
+If the project's entry point cannot be used (it opens a window, or asks
+questions), write a small adapter. `adapters/template.py` is a fill-in
+template for Python projects: it calls your parser and simulation and prints
+the turns. `adapters/fly_in_project.py` is a finished example.
 
 ## How a map is judged
 
@@ -113,7 +174,10 @@ uses 44 (beating the record of 45) and is optional.
 in that file (or a map and a manifest entry) and run
 `python3 tools/build_maps.py --project ../your-project`.
 
-## Adapter for a project with `build_scheduler`
+## Adapter for the author's project
+
+`make run` uses this adapter by default, so the project itself needs no
+changes:
 
 ```sh
 python3 -m fly_in_tester run --cmd "python3 adapters/fly_in_project.py {map}"
@@ -152,8 +216,9 @@ fly_in_tester/   mapfile.py  (independent map reader)
                  checker.py  (solution checker)
                  runner.py   (runs the program, judges the result)
                  __main__.py (command line: run, check, list)
+Makefile         shortcuts (make help)
 maps/            provided/, edge/, manifest.json
-adapters/        fly_in_project.py
+adapters/        fly_in_project.py (finished example), template.py (fill-in)
 tools/           build_maps.py
 tests/           tests of the tester
 whitebox/        unit tests for the project under test

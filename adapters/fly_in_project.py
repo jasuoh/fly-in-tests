@@ -34,9 +34,15 @@ def main(argv: list[str]) -> int:
         return 2
     sys.path.insert(0, str(root))
     os.chdir(root)
-    from src.input_parsing import input_parsing
-    from src.pathfinding_algorithm import CustomException
-    from src.simulation_engine import build_scheduler
+    try:
+        from src.input_parsing import input_parsing
+        from src.pathfinding_algorithm import CustomException
+        from src.simulation_engine import build_scheduler
+    except ImportError as error:
+        print(f"cannot import the project ({error}); run this with the "
+              f"project's Python, e.g. {root}/.venv/bin/python",
+              file=sys.stderr)
+        return 2
 
     config = input_parsing(argv[1])
     try:

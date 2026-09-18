@@ -66,6 +66,14 @@ class FakeProgramTests(unittest.TestCase):
         self.assertEqual(outcome.status, FAIL)
         self.assertIn("invalid solution", outcome.message)
 
+    def test_traceback_message_names_the_cause(self) -> None:
+        """The failure message shows the last line of the traceback."""
+        outcome = self.runner(
+            "raise ModuleNotFoundError('No module named pydantic')"
+        ).run_case(self.solve)
+        self.assertEqual(outcome.status, FAIL)
+        self.assertIn("No module named pydantic", outcome.message)
+
     def test_incomplete_and_missing_solution(self) -> None:
         """Half a solution, or none, fails."""
         self.assertEqual(self.judge("print('D0-a')", self.solve), FAIL)

@@ -421,6 +421,112 @@ class ConnectionErrorTests(ParserTestCase):
                 )
 
 
+class MetadataBracketTests(ParserTestCase):
+    """The [key=value ...] block: brackets, duplicates and spacing."""
+
+    ZONE = 'hub: a 1 0'
+    LINK = 'connection: s-a'
+
+    def zone_error(self, definition: str, *fragments: str) -> None:
+        """Assert that a zone definition on line 3 is rejected."""
+        self.parse_error(edit(self.ZONE, definition), 3, *fragments)
+
+    def link_error(self, definition: str, *fragments: str) -> None:
+        """Assert that a connection definition on line 5 is rejected."""
+        self.parse_error(edit(self.LINK, definition), 5, *fragments)
+
+    def test_accepted_forms(self) -> None:
+        """Empty block, extra spaces and tabs are fine."""
+        for definition in (
+            'hub: a 1 0 []',
+            'hub: a 1 0 [  zone=priority    max_drones=2  ]',
+            'hub: a 1 0 [zone=priority max_drones=2]   ',
+            'hub:\ta\t1  0 [zone=priority max_drones=2]',
+        ):
+            with self.subTest(definition=definition):
+                config = self.parse(edit(self.ZONE, definition))
+                assert config.zones is not None
+                self.assertEqual(config.zones[1].name, 'a')
+        config = self.parse(edit(self.ZONE, 'hub: a 1 0 [zone=priority]'))
+        assert config.zones is not None
+        self.assertEqual(config.zones[1].zone, zone_types.priority)
+
+    def test_unclosed_bracket(self) -> None:
+        """A missing ] is reported."""
+        self.zone_error('hub: a 1 0 [zone=normal', "missing ']'")
+
+    def test_closing_bracket_without_opening(self) -> None:
+        """A ] without [ is reported."""
+        self.zone_error('hub: a 1 0 zone=normal]', "without a matching '['")
+        self.zone_error('hub: a 1 0 ] zone=normal [', "before '['")
+
+    def test_metadata_needs_brackets(self) -> None:
+        """key=value outside of brackets is rejected."""
+        self.zone_error(
+            'hub: a 1 0 zone=normal', 'zone=normal', 'enclosed in [ ]'
+        )
+
+    def test_only_one_block(self) -> None:
+        """Two blocks, or nested brackets, are rejected."""
+        for definition in (
+            'hub: a 1 0 [zone=normal] [color=red]',
+            'hub: a 1 0 [[zone=normal]]',
+        ):
+            with self.subTest(definition=definition):
+                self.zone_error(definition, 'Only one metadata block')
+
+    def test_text_after_the_block(self) -> None:
+        """Nothing may follow the closing bracket."""
+        self.zone_error('hub: a 1 0 [zone=normal] extra', 'after ]', 'extra')
+
+    def test_extra_text_before_the_block(self) -> None:
+        """Extra fields (for example an inline comment) are rejected."""
+        self.zone_error('hub: a 1 0 # note', 'Unexpected text "# note"')
+
+    def test_duplicate_key(self) -> None:
+        """A key may appear only once, in zones and in connections."""
+        self.zone_error(
+            'hub: a 1 0 [zone=normal zone=blocked]', '"zone" is given twice'
+        )
+        self.link_error(
+            'connection: s-a [max_link_capacity=2 max_link_capacity=3]',
+            '"max_link_capacity" is given twice'
+        )
+
+    def test_malformed_pairs(self) -> None:
+        """Empty keys, several = signs and missing = are rejected."""
+        for pair in ('=normal', 'zone=a=b', 'zone', 'zone=normal='):
+            with self.subTest(pair=pair):
+                self.zone_error(
+                    f'hub: a 1 0 [{pair}]', f'Invalid metadata "{pair}"'
+                )
+
+    def test_connection_brackets(self) -> None:
+        """The same bracket rules apply to connections."""
+        self.link_error(
+            'connection: s-a [max_link_capacity=2', "missing ']'"
+        )
+        self.link_error(
+            'connection: s-a [max_link_capacity=2] [max_link_capacity=3]',
+            'Only one metadata block'
+        )
+        self.link_error(
+            'connection: s-a max_link_capacity=2', 'enclosed in [ ]'
+        )
+
+    def test_start_and_end_hub_brackets(self) -> None:
+        """The rules also apply to start_hub and end_hub lines."""
+        self.parse_error(
+            edit('start_hub: s 0 0 [color=green]',
+                 'start_hub: s 0 0 [color=green'), 2, "missing ']'"
+        )
+        self.parse_error(
+            edit('end_hub: g 2 0 [color=red]',
+                 'end_hub: g 2 0 [color=red] [zone=normal]'), 4,
+            'Only one metadata block'
+        )
+
+
 class FileErrorTests(ParserTestCase):
     """Problems with the file itself must not crash the program."""
 

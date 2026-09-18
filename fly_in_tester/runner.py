@@ -73,6 +73,12 @@ def load_manifest(maps_dir: Path = MAPS_DIR) -> list[Case]:
     return sorted(cases, key=lambda case: order.get(case.group, len(order)))
 
 
+def last_line(text: str) -> str:
+    """Return the last non-empty line of ``text`` (a traceback's cause)."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return lines[-1] if lines else ""
+
+
 def extract_turns(text: str) -> tuple[list[str], list[str]]:
     """Split program output into turn lines and other (noise) lines."""
     turns, noise = [], []
@@ -178,8 +184,10 @@ class Runner:
         turns, noise = extract_turns(process.stdout)
         details = tuple(noise[-3:])
         if TRACEBACK.search(combined) or process.returncode < 0:
+            cause = last_line(process.stderr) or last_line(process.stdout)
             return Outcome(case, FAIL, "crashed instead of reporting an "
-                           "error (traceback or signal)", details=details)
+                           f"error: {cause[:100] or 'signal'}",
+                           details=details)
         if process.returncode == 0:
             return Outcome(case, FAIL, "accepted an invalid map "
                            "(exit status 0)", details=details)
@@ -210,7 +218,8 @@ class Runner:
         turns, noise = extract_turns(written if self.use_file
                                      else process.stdout)
         if TRACEBACK.search(process.stdout + process.stderr):
-            return Outcome(case, FAIL, "printed a traceback")
+            cause = last_line(process.stderr) or last_line(process.stdout)
+            return Outcome(case, FAIL, f"printed a traceback: {cause[:110]}")
         if process.returncode != 0:
             message = (process.stderr.strip().splitlines() or ["?"])[-1]
             message = message.replace(str(case.path), case.path.name)
