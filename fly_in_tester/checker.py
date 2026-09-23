@@ -9,8 +9,9 @@ Rules checked (all from the subject):
   are only entered by the two-turn flight;
 * a zone holds at most ``max_drones`` drones at the end of a turn (start and
   end are unlimited, drones leaving free space in the same turn);
-* a connection carries at most ``max_link_capacity`` drones per turn; a
-  flight occupies it in its departure turn *and* its landing turn;
+* a connection carries at most ``max_link_capacity`` drones per turn; only
+  departures count, a drone landing from a flight frees its connection in
+  the same turn (like a drone leaving a zone);
 * drones that reached the end zone do not move again;
 * at the end every drone is in the end zone and there are no empty turns.
 
@@ -46,7 +47,7 @@ class _Drone:
     """State of one drone while replaying the log."""
 
     zone: str | None
-    flight: tuple[frozenset[str], str, int] | None = None
+    flight: tuple[str, int] | None = None
 
 
 def _split(token: str) -> tuple[int, list[str]] | None:
@@ -104,12 +105,11 @@ def check_solution(fly_map: FlyMap, log: list[str]) -> CheckResult:
                 continue
             acted.add(drone_id)
             if drone.flight is not None:
-                link, target, arrival = drone.flight
+                target, arrival = drone.flight
                 if len(parts) != 1 or parts[0] != target or arrival != turn:
                     fail(turn, f"{token}: D{drone_id} must land in {target} "
                                f"in turn {arrival}")
                 drone.zone, drone.flight = target, None
-                link_use[link] = link_use.get(link, 0) + 1
                 continue
             if drone.zone == fly_map.end:
                 fail(turn, f"{token}: D{drone_id} moves after being delivered")
@@ -143,14 +143,14 @@ def check_solution(fly_map: FlyMap, log: list[str]) -> CheckResult:
                            f"connection form is wrong")
             link_use[link_key] = link_use.get(link_key, 0) + 1
             if kind == "restricted":
-                drone.zone, drone.flight = None, (link_key, target, turn + 1)
+                drone.zone, drone.flight = None, (target, turn + 1)
             else:
                 drone.zone = target
         for drone_id, drone in drones.items():
-            if drone.flight is not None and drone.flight[2] <= turn:
+            if drone.flight is not None and drone.flight[1] <= turn:
                 fail(turn, f"D{drone_id + base} did not land in "
-                           f"{drone.flight[1]} as required")
-                drone.zone, drone.flight = drone.flight[1], None
+                           f"{drone.flight[0]} as required")
+                drone.zone, drone.flight = drone.flight[0], None
         for link_key, used in link_use.items():
             capacity = fly_map.links[link_key].capacity
             if used > capacity:

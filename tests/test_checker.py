@@ -71,6 +71,11 @@ class ValidSolutionTests(Base):
         self.valid(restricted(2), [
             "D0-s-r", "D0-r", "D0-g D1-s-r", "D1-r", "D1-g"])
 
+    def test_landing_frees_the_link(self) -> None:
+        """A drone may depart on the link another drone lands from."""
+        self.valid(restricted(2), [
+            "D0-s-r", "D0-r D1-s-r", "D0-g D1-r", "D1-g"])
+
 
 class RuleViolationTests(Base):
     """Every rule of the subject is enforced."""
@@ -101,10 +106,10 @@ class RuleViolationTests(Base):
         """A missing landing is reported."""
         self.invalid(restricted(), ["D0-s-r"], "did not reach")
 
-    def test_flight_link_is_busy_in_the_landing_turn(self) -> None:
-        """The connection is occupied in the departure and landing turn."""
+    def test_two_flights_depart_together(self) -> None:
+        """Two departures on a connection with capacity 1."""
         self.invalid(restricted(2),
-                     ["D0-s-r", "D0-r D1-s-r", "D0-g", "D1-r", "D1-g"],
+                     ["D0-s-r D1-s-r", "D0-r D1-r", "D0-g", "D1-g"],
                      "connection r-s")
 
     def test_connection_form_for_normal_zone(self) -> None:

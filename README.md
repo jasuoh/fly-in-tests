@@ -146,9 +146,9 @@ when:
 - a drone in flight does not land in the **next** turn;
 - a zone holds more than `max_drones` drones at the end of a turn (start and
   end are unlimited; a drone leaving frees its place in the same turn);
-- a connection carries more than `max_link_capacity` drones in a turn (a
-  flight counts in its departure turn *and* its landing turn, in both
-  directions);
+- a connection carries more than `max_link_capacity` drones in a turn
+  (departures in both directions; a drone landing from a flight frees the
+  connection in the same turn);
 - a delivered drone moves again, a turn line is empty, or not every drone
   ends in the end zone.
 

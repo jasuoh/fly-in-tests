@@ -10,7 +10,7 @@ CMD     ?= $(PYTHON) $(CURDIR)/adapters/fly_in_project.py {map}
 # Directory the command runs in (the project's root by default).
 CWD     ?= $(PROJECT)
 JOBS    ?= 4
-TIMEOUT ?= 60
+TIMEOUT ?= 25
 # Optional: GROUP=provided|provided-invalid|edge-valid|edge-invalid
 #           FILTER=<text in the map path>   ARGS=<extra options>
 GROUP   ?=
